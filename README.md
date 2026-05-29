@@ -1,3 +1,6 @@
+# Wyrm
+Wyrm is a NetNet client for OptiTrack Camera systems. The Wyrm daemon simplifies interacting with OptiTrack systems by managing networking and allowing applications to retrieved data from their OptiTrack system using Zenoh Pub/Sub. 
+
 # Installation and Building
 
 ## Requirments
@@ -19,8 +22,7 @@ sudo dnf install gcc gcc-c++ make cmake tar curl zip unzip git
 ### NatNet SDK
 [NatNet](https://optitrack.com/software/natnet-sdk) is a Software library developed by OptiTrack, and is used to create client applications for OptiTrack camera systems.
 
-1. Install the NatNet SDK for your OS: optitrack.com/software/natnet-sdk
-
+1. Install the [NatNet SDK](https://optitrack.com/software/natnet-sdk) for your OS.
 2. Extract the archive to the NatNetSDK folder:
     ```shell
     sudo mkdir ~/NatNetSDK
