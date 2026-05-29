@@ -21,7 +21,7 @@ CmdArgs parseArgs(int argc, char *argv[]) {
     } catch (const std::exception& err) {
         std::cerr << err.what() << "\n";
         std::cerr << program;
-        std::exit(EXIT_FAILURE); // TODO: This is bad
+        std::exit(EXIT_FAILURE); // This is kind of bad... forgive me -_-
     }
 
     return CmdArgs {
@@ -72,9 +72,23 @@ int main(int argc, char *argv[]) {
             case ErrorCode_InvalidOperation:    throw std::runtime_error("Invalid operation.");
             default:                            throw std::runtime_error("Unknown NatNet error.");
         }
+        if (args.printing) {fmt::print(bg(fmt::color::green), "[Success] Connected to Server!\n");}
+
+        // Connect callbacks
+        // TODO
+
+        // Setup Zenoh Session
+        // TODO
+
+        // Loop to receive data from server
+        //  Read data from server
+        //  Package data for Zenoh
+        //  Publish data to Zenoh
+        //  Gracefull cleanup on CRTL-C
 
         // Disconnect from the server
         client.Disconnect();
+        if (args.printing) {fmt::print(bg(fmt::color::green), "[Success] Disconnected From Server!\n");}
 
     } catch (const std::runtime_error& e) {
         fmt::print(stderr, bg(fmt::color::coral), "[Runtime error] {}\n", e.what());
