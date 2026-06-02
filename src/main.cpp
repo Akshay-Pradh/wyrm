@@ -1,83 +1,98 @@
 #include <iostream>
+#include <sstream>
 #include <fmt/format.h>
 #include <fmt/color.h>
-#include <argparse/argparse.hpp>
-#include <toml++/toml.hpp>
 #include "NatNetTypes.h"
 #include "NatNetClient.h"
 #include "include/types.hpp"
+#include "include/io.hpp"
 
-CmdArgs parseArgs(int argc, char *argv[]) {
-    argparse::ArgumentParser program("mocapd");
-    program.add_argument("-l", "--logging")
-        .help("Save logs to a file.")
-        .flag();
-    program.add_argument("-p", "--printing")
-        .help("Print information to the console.")
-        .flag();
-
-    try {
-        program.parse_args(argc, argv);
-    } catch (const std::exception& e) {
-        fmt::println(stderr, "{}", e.what());
-        std::cerr << program;
-        std::exit(EXIT_FAILURE); // This is kind of bad... forgive me -_-
+void connectToServer(NatNetClient& client, const WyrmConfig wyrmCfg) {
+    // Connect to Server
+    switch (client.Connect(wyrmCfg.toNatNet())) {
+        case ErrorCode_OK:                  break;
+        case ErrorCode_Network:             throw std::runtime_error("Unable to Connect to Server.");
+        case ErrorCode_InvalidArgument:     throw std::runtime_error("Invalid connection params.");
+        case ErrorCode_InvalidOperation:    throw std::runtime_error("Invalid operation.");
+        default:                            throw std::runtime_error("Unknown NatNet error.");
     }
 
-    return CmdArgs {
-        .logging  = program.get<bool>("--logging"),
-        .printing = program.get<bool>("--printing"),
-    };
-}
+    // Test Server Connection
+    sServerDescription serverDesc;
+    client.GetServerDescription(&serverDesc);
 
-WyrmConfig parseMotiveConfig(const std::string& path = "./config/config.toml") {
-    toml::table tbl = toml::parse_file(path);
+    if (!serverDesc.bConnectionInfoValid) {
+        throw std::runtime_error("Invalid connection params. Server predates NatNet 3.0");
+    }
 
-    WyrmConfig cfg;
-    cfg.serverCommandPort = tbl["networking"]["command_port"].value<uint16_t>().value_or(0);
-    cfg.serverDataPort    = tbl["networking"]["data_port"].value<uint16_t>().value_or(0);
-    cfg.serverAddress     = tbl["networking"]["server_address"].value<std::string>().value_or("");
-    cfg.localAddress      = tbl["networking"]["client_address"].value<std::string>().value_or("");
-    cfg.multicastAddress  = tbl["networking"]["multicast_address"].value<std::string>().value_or("");
-    cfg.connectionType    = tbl["networking"]["use_multicast"].value<bool>().value_or(false)
-                              ? ConnectionType_Multicast
-                              : ConnectionType_Unicast;
-    return cfg;
+    if (!serverDesc.HostPresent) {
+        throw std::runtime_error("Unable to Connect to Server. Host not present.");
+    }
+
+    // Check that the connection types match
+    if (serverDesc.ConnectionMulticast && 
+        wyrmCfg.connectionType != ConnectionType_Multicast) {
+            throw std::runtime_error("Invalid connection params. Connection Types do not match.");
+    }
+
+    if (!serverDesc.ConnectionMulticast && 
+        wyrmCfg.connectionType != ConnectionType_Unicast) {
+            throw std::runtime_error("Invalid connection params. Connection Types do not match.");
+    }
+
+    // Convert serverDesc IP to a c++ string
+    std::ostringstream ipOss;
+    ipOss << static_cast<int>(serverDesc.HostComputerAddress[0]) << '.'
+        << static_cast<int>(serverDesc.HostComputerAddress[1]) << '.'
+        << static_cast<int>(serverDesc.HostComputerAddress[2]) << '.'
+        << static_cast<int>(serverDesc.HostComputerAddress[3]);
+
+    std::string ipString = ipOss.str();
+
+    if (ipString != wyrmCfg.serverAddress) {
+        throw std::runtime_error("Unable to Connect to Server. Host IP Addresses do not Match.");
+    }
+
+    // Convert serverDesc Multicast Id to a c++ string
+    std::ostringstream mOss;
+    mOss << static_cast<int>(serverDesc.ConnectionMulticastAddress[0]) << '.'
+        << static_cast<int>(serverDesc.ConnectionMulticastAddress[1]) << '.'
+        << static_cast<int>(serverDesc.ConnectionMulticastAddress[2]) << '.'
+        << static_cast<int>(serverDesc.ConnectionMulticastAddress[3]);
+
+    std::string multicastString = mOss.str();
+
+    if (multicastString != wyrmCfg.multicastAddress) {
+        throw std::runtime_error("Unable to Connect to Server. Multicast Addresses do not match.");
+    }
+    
+    if (serverDesc.ConnectionDataPort != wyrmCfg.serverDataPort) {
+        throw std::runtime_error("Invalid connection params. Data ports do not match.");
+    }
 }
 
 int main(int argc, char *argv[]) {
     try {
-        // Parse cmd args
-        CmdArgs args = parseArgs(argc, argv);
+
+        IOHandler io(argc, argv);
 
         // Read config file
         WyrmConfig wyrmCfg = parseMotiveConfig();
 
-        if (args.printing) {
-            fmt::println("---Wyrm Configuration---");
-            fmt::println("Connection Type: {}", 
-                wyrmCfg.connectionType == ConnectionType_Multicast ? "Multicast" : "Unicast");
-            fmt::println("Server Address: {}", wyrmCfg.serverAddress);
-            fmt::println("Client Address: {}", wyrmCfg.localAddress);
-        }
-
         // Create a client
         NatNetClient client;
+        connectToServer(client, wyrmCfg);
 
-        // Connect to Server
-        switch (client.Connect(wyrmCfg.toNatNet())) {
-            case ErrorCode_OK:                  break;
-            case ErrorCode_Network:             throw std::runtime_error("Unable to Connect to Server.");
-            case ErrorCode_InvalidArgument:     throw std::runtime_error("Invalid connection params.");
-            case ErrorCode_InvalidOperation:    throw std::runtime_error("Invalid operation.");
-            default:                            throw std::runtime_error("Unknown NatNet error.");
-        }
-        if (args.printing) {fmt::print(bg(fmt::color::green), "[Success] Connected to Server!\n");}
+        io.logConfig(wyrmCfg);
+        io.logMessage(fmt::format("[Success] Connected to Server at {}!", wyrmCfg.serverAddress));
+
+        // Get Data Descriptions from the server
+        
 
         // Connect callbacks
         // TODO
 
-        // Setup Zenoh Session
+        // Setup DDS Session
         // TODO
 
         // Loop to receive data from server
@@ -88,7 +103,7 @@ int main(int argc, char *argv[]) {
 
         // Disconnect from the server
         client.Disconnect();
-        if (args.printing) {fmt::print(bg(fmt::color::green), "[Success] Disconnected From Server!\n");}
+        io.logMessage("[Success] Disconnected From Server!");
 
     } catch (const std::runtime_error& e) {
         fmt::print(stderr, bg(fmt::color::coral), "[Runtime error] {}\n", e.what());

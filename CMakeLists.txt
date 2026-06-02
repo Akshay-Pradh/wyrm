@@ -53,7 +53,11 @@ FetchContent_MakeAvailable(fmt Catch2 tomlplusplus argparse)
 find_package(NatNet REQUIRED)
 
 # Core executable
-add_executable(wyrm src/main.cpp)
+add_executable(wyrm 
+    src/main.cpp
+    src/io.cpp
+)
+
 target_include_directories(wyrm
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
