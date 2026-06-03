@@ -62,6 +62,8 @@ find_package(fastcdr REQUIRED)
 add_executable(wyrm
     src/main.cpp
     src/io.cpp
+    src/types.cpp
+    src/serialization.cpp
 )
 
 target_include_directories(wyrm

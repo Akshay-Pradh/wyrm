@@ -1,23 +1,24 @@
 #pragma once
+
 #include <string>
 #include "NatNetTypes.h"
 #include "NatNetClient.h"
 #include "include/types.hpp"
 
 class IOHandler {
-private:
-    bool printing = false;
-    bool logging = false;
-    std::string logPath;
+ private:
+    bool        printing = false;
+    bool        logging  = false;
+    std::string log_path;
 
-public:
-    IOHandler(int argc, char *argv[]);
-    bool isPrinting() const;
-    void logMessage(const std::string& msg, const std::string& level = "INFO") const;
-    void logConfig(const WyrmConfig cfg) const;
+ public:
+    IOHandler(int argc, char* argv[]);
+    bool IsPrinting() const;
+    void LogMessage(const std::string& msg, const std::string& level = "INFO") const;
+    void LogConfig(const WyrmConfig& cfg) const;
 
-private:
-    std::string generateLogPath(const std::string& logDir) const;
+ private:
+    std::string GenerateLogPath(const std::string& log_dir) const;
 };
 
-WyrmConfig parseMotiveConfig(const std::string& path = "./config/config.toml");
+WyrmConfig ParseMotiveConfig(const std::string& path = "./config/config.toml");
