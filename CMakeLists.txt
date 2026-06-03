@@ -64,6 +64,7 @@ add_executable(wyrm
     src/io.cpp
     src/types.cpp
     src/serialization.cpp
+    src/net.cpp
 )
 
 target_include_directories(wyrm

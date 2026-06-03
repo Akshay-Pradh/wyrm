@@ -4,17 +4,21 @@
 #include <vector>
 #include <queue>
 #include <unordered_map>
+#include <mutex>
+#include <condition_variable>
 #include "zenoh.hxx"
 #include "NatNetTypes.h"
 #include "NatNetClient.h"
 
-using NameTable = std::unordered_map<int32_t, std::string>;
+struct WyrmDescription {
+    int32_t id;
+    int32_t parent_id;
+    char    name[MAX_NAMELENGTH];
+    int32_t num_markers;
 
-struct WyrmContext {
-    zenoh::Session*             session;
-    NameTable                   name_table;
-    std::queue<WyrmFrame>       frame_buffer;
 };
+
+using DescriptionTable = std::unordered_map<int32_t, WyrmDescription>;
 
 struct WyrmRigidBody {
     int32_t id;
@@ -35,6 +39,15 @@ struct WyrmFrame {
     bool     model_list_changed;
     uint32_t body_count;
     std::vector<WyrmRigidBody> bodies;
+};
+
+struct WyrmContext {
+    zenoh::Session*                 session;
+    std::mutex                      buffer_mutex;
+    std::mutex                      descriptions_mutex;
+    std::condition_variable         buffer_cv;
+    DescriptionTable                descriptions;
+    std::queue<WyrmFrame>           frame_buffer;
 };
 
 struct WyrmConfig {
@@ -58,11 +71,12 @@ struct WyrmConfig {
 };
 
 WyrmRigidBody ToWyrmBody(const sRigidBodyData& src,
-                                 const NameTable & name_table);
+                                 const DescriptionTable& descriptions);
 WyrmFrame ToWyrmFrame(const sFrameOfMocapData& src,
-                              const NameTable & name_table);
+                              const DescriptionTable& descriptions);
+WyrmDescription ToWyrmDescription(const sRigidBodyDescription& src);
+void BuildDescriptionTable(sDataDescriptions* desc, WyrmContext& ctx);
 uint8_t PackBodyFlags(const WyrmRigidBody& b);
 uint8_t PackFrameFlags(const WyrmFrame& f);
 void UnpackBodyFlags(uint8_t flags, WyrmRigidBody& b);
 void UnpackFrameFlags(uint8_t flags, WyrmFrame& f);
-NameTable BuildNameTable(sDataDescriptions* desc);

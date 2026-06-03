@@ -1,3 +1,5 @@
+#include <csignal>
+#include <atomic>
 #include <iostream>
 #include <sstream>
 #include <fmt/format.h>
@@ -9,106 +11,109 @@
 #include "include/io.hpp"
 #include "include/constants.hpp"
 #include "include/serialization.hpp"
+#include "include/net.hpp"
 
-void ConnectToServer(NatNetClient& client, const WyrmConfig& cfg) {
-    switch (client.Connect(cfg.ToNatNet())) {
-        case ErrorCode_OK:               break;
-        case ErrorCode_Network:          throw std::runtime_error("Unable to Connect to Server.");
-        case ErrorCode_InvalidArgument:  throw std::runtime_error("Invalid connection params.");
-        case ErrorCode_InvalidOperation: throw std::runtime_error("Invalid operation.");
-        default:                         throw std::runtime_error("Unknown NatNet error.");
-    }
-
-    sServerDescription server_desc;
-    client.GetServerDescription(&server_desc);
-
-    if (!server_desc.bConnectionInfoValid)
-        throw std::runtime_error("Invalid connection params. Server predates NatNet 3.0");
-    if (!server_desc.HostPresent)
-        throw std::runtime_error("Unable to Connect to Server. Host not present.");
-
-    if (server_desc.ConnectionMulticast &&
-        cfg.connection_type != ConnectionType_Multicast)
-            throw std::runtime_error("Invalid connection params. Connection Types do not match.");
-
-    if (!server_desc.ConnectionMulticast &&
-        cfg.connection_type != ConnectionType_Unicast)
-            throw std::runtime_error("Invalid connection params. Connection Types do not match.");
-
-    std::ostringstream ip_oss;
-    ip_oss << static_cast<int>(server_desc.HostComputerAddress[0]) << '.'
-           << static_cast<int>(server_desc.HostComputerAddress[1]) << '.'
-           << static_cast<int>(server_desc.HostComputerAddress[2]) << '.'
-           << static_cast<int>(server_desc.HostComputerAddress[3]);
-
-    if (ip_oss.str() != cfg.server_address)
-        throw std::runtime_error("Unable to Connect to Server. Host IP Addresses do not Match.");
-
-    std::ostringstream mc_oss;
-    mc_oss << static_cast<int>(server_desc.ConnectionMulticastAddress[0]) << '.'
-           << static_cast<int>(server_desc.ConnectionMulticastAddress[1]) << '.'
-           << static_cast<int>(server_desc.ConnectionMulticastAddress[2]) << '.'
-           << static_cast<int>(server_desc.ConnectionMulticastAddress[3]);
-
-    if (mc_oss.str() != cfg.multicast_address)
-        throw std::runtime_error("Unable to Connect to Server. Multicast Addresses do not match.");
-
-    if (server_desc.ConnectionDataPort != cfg.server_data_port)
-        throw std::runtime_error("Invalid connection params. Data ports do not match.");
+static std::atomic<bool> g_running{true};
+static void signal_handler(int) {
+    g_running = false;
 }
 
 int main(int argc, char* argv[]) {
-    try {
-        IOHandler io(argc, argv);
+    IOHandler io(argc, argv);
 
+    try {
         // Setup and connect to NatNet server
         WyrmConfig wyrm_cfg = ParseMotiveConfig();
-        NatNetClient client = {};
+        io.LogMessage("Creating Client", INFO);
+        NatNetClient client{};
         ConnectToServer(client, wyrm_cfg);
 
-        io.LogMessage(fmt::format("[Success] Connected to Server at {}!", wyrm_cfg.server_address));
+        io.LogMessage(fmt::format("Connected to Server at {}!", wyrm_cfg.server_address), SUCCESS);
         io.LogConfig(wyrm_cfg);
+
+        io.LogMessage("Configuring Wyrm Context", INFO);
+
+        // Setup Zenoh Session
+        auto config = zenoh::Config::create_default();
+        auto session = zenoh::Session::open(std::move(config));
+
+        WyrmContext wyrm_ctx{};
+        wyrm_ctx.session = &session;
 
         // Get Data Descriptions from server and build Rigid Body name table
         sDataDescriptions* descriptions = nullptr;
         client.GetDataDescriptionList(&descriptions);
-        NameTable name_table = BuildNameTable(descriptions);
-
-        // Setup Zenoh Session
-        zenoh::init_log_from_env_or("error");
-        zenoh::Config zenoh_cfg = zenoh::Config::create_default();
-        auto session = zenoh::Session::open(std::move(zenoh_cfg));
+        BuildDescriptionTable(descriptions, wyrm_ctx);
 
         // Create a queryable for data descriptions
-        auto queryable = session.declare_queryable(WyrmDescKeyexpr,
-            [&ctx](const zenoh::Query& query) {
-                auto payload = serialize_descriptions(ctx.descriptions);
+        auto queryable = wyrm_ctx.session->declare_queryable(
+            WyrmDescKeyexpr,
+            [&wyrm_ctx](const zenoh::Query& query) {
+                std::lock_guard<std::mutex> lock(wyrm_ctx.descriptions_mutex);
+                auto payload = SerializeDescriptions(wyrm_ctx.descriptions);
                 query.reply(
                     WyrmDescKeyexpr,
-                    zenoh::Bytes::copy(payload.data(), payload.size())
+                    zenoh::Bytes(std::move(payload))
                 );
-            }
+            },
+            zenoh::closures::none  // on_drop handler
         );
 
-        // Create a publisher for Frames
-        auto framePub = session.declare_publisher(KeyExpr(WyrmFrameKeyexpr));
+        std::signal(SIGINT,  signal_handler);
+        std::signal(SIGTERM, signal_handler);
 
-        while (true) {
-            // 1. Mocap callback converts from natnet->wyrm, then puts data into buffer
-            // 2. Pull from buffer, serialize, publish
+        // Attach frame callback
+        client.SetFrameReceivedCallback(frame_callback, &wyrm_ctx);
+
+        io.LogMessage("Wyrm Context Configured", SUCCESS);
+
+        while (g_running) {
+            // Wait to get the lock on the data buffer
+            std::unique_lock<std::mutex> lock(wyrm_ctx.buffer_mutex);
+            wyrm_ctx.buffer_cv.wait(lock, [&]{
+                return !wyrm_ctx.frame_buffer.empty() || !g_running;
+            });
+
+            if (!g_running) break;
+
+            // Get the first frame in the buffer
+            WyrmFrame frame = std::move(wyrm_ctx.frame_buffer.front());
+            wyrm_ctx.frame_buffer.pop(); // remove it from the queue
+            lock.unlock();
+
+            // Check for model list change before publishing
+            if (frame.model_list_changed) {
+                sDataDescriptions* desc = nullptr;
+                client.GetDataDescriptionList(&desc); // since this is a blocking call we need to do it outside the lock
+
+                WyrmContext temp_ctx{};
+                BuildDescriptionTable(desc, temp_ctx); // build into temp
+
+                {
+                    std::lock_guard<std::mutex> desc_lock(wyrm_ctx.descriptions_mutex);
+                    wyrm_ctx.descriptions = std::move(temp_ctx.descriptions); // swap under lock
+                }
+                io.LogMessage("Model list changed, descriptions updated.", INFO);
+            }
+
+            // Send payload over Zenoh
+            auto payload = SerializeFrame(frame);
+            session.put(WyrmFrameKeyexpr,
+                        zenoh::Bytes(std::move(payload))
+                    );
         }
 
         client.Disconnect();
-        io.LogMessage("[Success] Disconnected From Server!");
+        io.LogMessage("Disconnected From Server!", SUCCESS);
 
-    } catch (const ZException& e) {
-        fmt::print(stderr, bg(fmt::color::crimson), "[Zenoh Error] {}\n", e.what());
+    } catch (const zenoh::ZException& e) {
+        io.LogMessage(e.what(), EXCEPTION);
         return EXIT_FAILURE;
     } catch (const std::runtime_error& e) {
-        fmt::print(stderr, bg(fmt::color::coral), "[Runtime error] {}\n", e.what());
+        io.LogMessage(e.what(), RUNTIME_ERROR);
         return EXIT_FAILURE;
     } catch (const std::exception& e) {
-        fmt::print(stderr, bg(fmt::color::crimson), "[Exception] {}\n", e.what());
+        io.LogMessage(e.what(), EXCEPTION);
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;

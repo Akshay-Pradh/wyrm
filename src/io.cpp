@@ -30,9 +30,9 @@ bool IOHandler::IsPrinting() const {
     return printing;
 }
 
-void IOHandler::LogMessage(const std::string& msg, const std::string& level) const {
+void IOHandler::LogMessage(const std::string& msg, const std::string_view level) const {
     if (IsPrinting()) {
-        fmt::println("{}", msg);
+        fmt::println("[{}] {}", level, msg);
     } else {
         std::ofstream file(log_path, std::ios::app);
         file << fmt::format("[{}] {}\n", level, msg);

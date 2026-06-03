@@ -27,3 +27,21 @@ std::vector<uint8_t> SerializeFrame(const WyrmFrame& frame) {
         reinterpret_cast<const uint8_t*>(buffer.getBuffer()) + cdr.get_serialized_data_length()
     );
 }
+
+std::vector<uint8_t> SerializeDescriptions(const DescriptionTable& descriptions) {
+    eprosima::fastcdr::FastBuffer buffer;
+    eprosima::fastcdr::Cdr cdr(buffer, eprosima::fastcdr::Cdr::LITTLE_ENDIANNESS);
+
+    cdr << static_cast<uint32_t>(descriptions.size());
+    for (const auto& [id, desc] : descriptions) {
+        cdr << desc.id;
+        cdr << desc.parent_id;
+        cdr.serialize_array(desc.name, MAX_NAMELENGTH);
+        cdr << desc.num_markers;
+    }
+
+    return std::vector<uint8_t>(
+        reinterpret_cast<const uint8_t*>(buffer.getBuffer()),
+        reinterpret_cast<const uint8_t*>(buffer.getBuffer()) + cdr.get_serialized_data_length()
+    );
+}
