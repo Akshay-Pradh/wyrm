@@ -1,9 +1,10 @@
 #pragma once
 
 #include <string>
+#include <wyrm/types.hpp> 
 #include "NatNetTypes.h"
 #include "NatNetClient.h"
-#include "include/types.hpp"
+#include "context.hpp"
 
 inline constexpr std::string_view SUCCESS = "Success";
 inline constexpr std::string_view INFO = "Info";

@@ -4,7 +4,7 @@
 #include <fmt/chrono.h>
 #include <argparse/argparse.hpp>
 #include <toml++/toml.hpp>
-#include "include/io.hpp"
+#include "io.hpp"
 
 IOHandler::IOHandler(int argc, char* argv[]) {
     argparse::ArgumentParser program("wyrm");

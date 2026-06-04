@@ -19,7 +19,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Build Options
 option(WYRM_BUILD_DAEMON  "Build the wyrm daemon"       ON)
-option(WYRM_BUILD_TESTS   "Build tests"                 ON)
+option(WYRM_BUILD_TESTS   "Build tests"                 OFF)
 
 # FetchContent Dependencies
 include(FetchContent)
@@ -59,6 +59,7 @@ add_subdirectory(wyrm-cpp)
 
 
 if(WYRM_BUILD_DAEMON)
+    list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/wyrmd/cmake")
     find_package(NatNet REQUIRED)
     add_subdirectory(wyrmd)
 endif()

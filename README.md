@@ -17,7 +17,7 @@ If you would prefer to install the Wyrm dependencies manually use the following 
 ## Building
 In the wyrm root directory run:
 ```shell
-cmake --preset default # or clang
+cmake --preset gcc # or clang
 cmake --build build
 ```
 

@@ -1,5 +1,4 @@
 add_library(wyrm-cpp
-    src/types.cpp
     src/serialization.cpp
 )
 

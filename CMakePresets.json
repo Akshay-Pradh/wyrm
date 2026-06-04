@@ -11,7 +11,7 @@
       }
     },
     {
-      "name": "default",
+      "name": "gcc",
       "inherits": "base",
       "cacheVariables": {
         "WYRM_COMPILER": "gcc"

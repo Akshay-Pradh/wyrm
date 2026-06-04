@@ -7,11 +7,13 @@
 #include "NatNetTypes.h"
 #include "NatNetClient.h"
 #include "zenoh.hxx"
-#include "include/types.hpp"
-#include "include/io.hpp"
-#include "include/constants.hpp"
-#include "include/serialization.hpp"
-#include "include/net.hpp"
+#include <wyrm/types.hpp> 
+#include <wyrm/serialization.hpp>
+#include <wyrm/keys.hpp>
+
+#include "io.hpp"
+#include "net.hpp"
+#include "context.hpp"
 
 static std::atomic<bool> g_running{true};
 static void signal_handler(int) {

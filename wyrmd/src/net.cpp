@@ -1,4 +1,57 @@
-#include "include/net.hpp"
+#include <cstring>
+#include <stdexcept>
+#include "net.hpp"
+
+WyrmRigidBody ToWyrmBody(const sRigidBodyData& src,
+                                 const DescriptionTable& descriptions) {
+    WyrmRigidBody body{};
+    body.id           = src.ID;
+    body.x            = src.x;
+    body.y            = src.y;
+    body.z            = src.z;
+    body.qx           = src.qx;
+    body.qy           = src.qy;
+    body.qz           = src.qz;
+    body.qw           = src.qw;
+    body.mean_error   = src.MeanError;
+    body.tracking_lost = src.params & 0x01;
+    body.model_filled  = src.params & 0x02;
+
+    auto it = descriptions.find(src.ID);
+    if (it != descriptions.end()) {
+        std::strncpy(body.name, it->second.name, MAX_NAMELENGTH - 1);
+    } else {
+        std::snprintf(body.name, MAX_NAMELENGTH, "body_%d", src.ID);
+    }
+    return body;
+}
+
+WyrmFrame ToWyrmFrame(const sFrameOfMocapData& src,
+                              const DescriptionTable& descriptions) {
+    WyrmFrame frame{};
+    frame.frame_id                           = src.iFrame;
+    frame.timestamp                          = src.fTimestamp;
+    frame.precision_timestamp_secs           = src.PrecisionTimestampSecs;
+    frame.precision_timestamp_fractional_secs = src.PrecisionTimestampFractionalSecs;
+    frame.is_recording                       = src.params & 0x01;
+    frame.model_list_changed                 = src.params & 0x02;
+    frame.body_count                         = src.nRigidBodies;
+
+    frame.bodies.reserve(src.nRigidBodies);
+    for (int i = 0; i < src.nRigidBodies; i++) {
+        frame.bodies.push_back(ToWyrmBody(src.RigidBodies[i], descriptions));
+    }
+    return frame;
+}
+
+WyrmDescription ToWyrmDescription(const sRigidBodyDescription& src) {
+    WyrmDescription description{};
+    description.id          = src.ID;
+    description.parent_id   = src.parentID;
+    description.num_markers = src.nMarkers;
+    std::strncpy(description.name, src.szName, MAX_NAMELENGTH - 1);
+    return description;
+}
 
 void ConnectToServer(NatNetClient& client, const WyrmConfig& cfg) {
     switch (client.Connect(cfg.ToNatNet())) {

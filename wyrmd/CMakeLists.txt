@@ -4,6 +4,7 @@ add_executable(wyrmd
     src/main.cpp
     src/io.cpp
     src/net.cpp
+    src/context.cpp
 )
 
 target_include_directories(wyrmd
