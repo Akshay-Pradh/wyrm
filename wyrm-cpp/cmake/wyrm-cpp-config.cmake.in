@@ -1,0 +1,7 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(fastcdr REQUIRED)
+find_dependency(zenohcxx REQUIRED)
+
+include("${CMAKE_CURRENT_LIST_DIR}/wyrm-cpp-targets.cmake")

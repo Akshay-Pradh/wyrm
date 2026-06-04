@@ -1,21 +1,20 @@
 #pragma once
 
+#include <string>
 #include <vector>
 #include <cstdint>
 
-constexpr int MAX_NAME_LENGTH = 256;
-
 struct WyrmDescription {
-    int32_t id;
-    int32_t parent_id;
-    char    name[MAX_NAME_LENGTH];
-    int32_t num_markers;
+    int32_t     id;
+    int32_t     parent_id;
+    std::string name;
+    int32_t     num_markers;
 
 };
 
 struct WyrmRigidBody {
-    int32_t id;
-    char    name[MAX_NAME_LENGTH];
+    int32_t     id;
+    std::string name;
     float   x, y, z;
     float   qx, qy, qz, qw;
     float   mean_error;

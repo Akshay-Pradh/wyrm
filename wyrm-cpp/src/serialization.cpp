@@ -39,7 +39,7 @@ std::vector<uint8_t> SerializeFrame(const WyrmFrame& frame) {
 
     for (const auto& body : frame.bodies) {
         cdr << body.id;
-        cdr.serialize_array(body.name, MAX_NAME_LENGTH);
+        cdr << body.name;
         cdr << body.x << body.y << body.z;
         cdr << body.qx << body.qy << body.qz << body.qw;
         cdr << body.mean_error;
@@ -60,7 +60,7 @@ std::vector<uint8_t> SerializeDescriptions(const std::unordered_map<int32_t, Wyr
     for (const auto& [id, desc] : descriptions) {
         cdr << desc.id;
         cdr << desc.parent_id;
-        cdr.serialize_array(desc.name, MAX_NAME_LENGTH);
+        cdr << desc.name;
         cdr << desc.num_markers;
     }
 
@@ -68,4 +68,60 @@ std::vector<uint8_t> SerializeDescriptions(const std::unordered_map<int32_t, Wyr
         reinterpret_cast<const uint8_t*>(buffer.getBuffer()),
         reinterpret_cast<const uint8_t*>(buffer.getBuffer()) + cdr.get_serialized_data_length()
     );
+}
+
+WyrmFrame DeserializeFrame(const std::vector<uint8_t>& data) {
+    eprosima::fastcdr::FastBuffer buffer(
+        reinterpret_cast<char*>(const_cast<uint8_t*>(data.data())),
+        data.size()
+    );
+    eprosima::fastcdr::Cdr cdr(buffer, eprosima::fastcdr::Cdr::LITTLE_ENDIANNESS);
+
+    WyrmFrame frame;
+    uint32_t flags;
+
+    cdr >> frame.frame_id;
+    cdr >> frame.timestamp;
+    cdr >> frame.precision_timestamp_secs;
+    cdr >> frame.precision_timestamp_fractional_secs;
+    cdr >> flags;
+    UnpackFrameFlags(flags, frame);
+    cdr >> frame.body_count;
+
+    frame.bodies.resize(frame.body_count);
+    for (auto& body : frame.bodies) {
+        uint32_t body_flags;
+        cdr >> body.id;
+        cdr >> body.name;
+        cdr >> body.x >> body.y >> body.z;
+        cdr >> body.qx >> body.qy >> body.qz >> body.qw;
+        cdr >> body.mean_error;
+        cdr >> body_flags;
+        UnpackBodyFlags(body_flags, body);
+    }
+
+    return frame;
+}
+
+std::unordered_map<int32_t, WyrmDescription> DeserializeDescriptions(const std::vector<uint8_t>& data) {
+    eprosima::fastcdr::FastBuffer buffer(
+        reinterpret_cast<char*>(const_cast<uint8_t*>(data.data())),
+        data.size()
+    );
+    eprosima::fastcdr::Cdr cdr(buffer, eprosima::fastcdr::Cdr::LITTLE_ENDIANNESS);
+
+    std::unordered_map<int32_t, WyrmDescription> descriptions;
+    uint32_t count;
+    cdr >> count;
+
+    for (uint32_t i = 0; i < count; i++) {
+        WyrmDescription desc;
+        cdr >> desc.id;
+        cdr >> desc.parent_id;
+        cdr >> desc.name;
+        cdr >> desc.num_markers;
+        descriptions[desc.id] = desc;
+    }
+
+    return descriptions;
 }
