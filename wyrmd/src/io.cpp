@@ -1,3 +1,13 @@
+/**
+ * Copyright [2026] [Nicholas Sutton]
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ * http://www.apache.org/licenses/LICENSE-2.0
+ */
+
 #include <chrono>
 #include <fstream>
 #include <fmt/format.h>
@@ -6,6 +16,11 @@
 #include <toml++/toml.hpp>
 #include "io.hpp"
 
+/**
+* Constructor for the IOHandler Class
+* @param argc number of CLI args
+* @param argv an array of CLI arguments
+*/
 IOHandler::IOHandler(int argc, char* argv[]) {
     argparse::ArgumentParser program("wyrm");
     program.add_argument("-p", "--printing")
@@ -34,10 +49,19 @@ IOHandler::IOHandler(int argc, char* argv[]) {
     }
 }
 
+/**
+* Returns true if Wyrm should print logs to the terminal
+* @return true if the printing flag is set
+*/
 bool IOHandler::IsPrinting() const {
     return printing;
 }
 
+/**
+* Logs a message and its information level.
+* @param msg message to log
+* @param level the type of message being logged
+*/
 void IOHandler::LogMessage(const std::string& msg, const std::string_view level) const {
     if (IsPrinting()) {
         fmt::println("[{}] {}", level, msg);
@@ -47,6 +71,10 @@ void IOHandler::LogMessage(const std::string& msg, const std::string_view level)
     }
 }
 
+/**
+* Logs the provided Wyrm configuration.
+* @param cfg configuration to log
+*/
 void IOHandler::LogConfig(const WyrmConfig& cfg) const {
     std::string cfg_string = fmt::format(
         "[-----Wyrm Configuration-----]\n"
@@ -67,11 +95,20 @@ void IOHandler::LogConfig(const WyrmConfig& cfg) const {
     }
 }
 
+/**
+* Creates a Log file in the specified log directory
+* @param log_dir path to the log directory
+* @return the path to the log file
+*/
 std::string IOHandler::GenerateLogPath(const std::string& log_dir) const {
     auto now = std::chrono::system_clock::now();
     return fmt::format("{}/wyrm_{:%Y-%m-%d_%H-%M-%S}.log", log_dir, now);
 }
 
+/**
+* Parses the wyrm configuration file and saves its contents to a WyrmConfig struct.
+* @return a WyrmConfig struct that stores the config settings
+*/
 WyrmConfig IOHandler::ParseMotiveConfig() {
     toml::table tbl = toml::parse_file(config_path);
     WyrmConfig cfg;

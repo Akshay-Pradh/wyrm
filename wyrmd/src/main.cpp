@@ -1,3 +1,13 @@
+/**
+ * Copyright [2026] [Nicholas Sutton]
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ * http://www.apache.org/licenses/LICENSE-2.0
+ */
+
 #include <csignal>
 #include <atomic>
 #include <iostream>
@@ -42,7 +52,7 @@ int main(int argc, char* argv[]) {
         WyrmContext wyrm_ctx{};
         wyrm_ctx.session = &session;
 
-        // Get Data Descriptions from server and build Rigid Body name table
+        // Get Data Descriptions from server and build Rigid Body Description table
         sDataDescriptions* descriptions = nullptr;
         client.GetDataDescriptionList(&descriptions);
         BuildDescriptionTable(descriptions, wyrm_ctx);
@@ -76,7 +86,7 @@ int main(int argc, char* argv[]) {
                 return !wyrm_ctx.frame_buffer.empty() || !g_running;
             });
 
-            if (!g_running) break;
+            if (!g_running) break; // Break if a signal is received 
 
             // Get the first frame in the buffer
             WyrmFrame frame = std::move(wyrm_ctx.frame_buffer.front());
@@ -106,7 +116,6 @@ int main(int argc, char* argv[]) {
         }
 
         client.Disconnect();
-        io.LogMessage("Disconnected From Server!", SUCCESS);
 
     } catch (const zenoh::ZException& e) {
         io.LogMessage(e.what(), EXCEPTION);

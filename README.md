@@ -23,7 +23,15 @@ cmake --build build
 cmake --install build --prefix ~/.local
 ```
 
-then in your projects CMakeLists.txt file put:
+#### Running C++ Tests
+If you want to run the C++ test suite for Wyrm use:
+```shell
+cmake --preset gcc -DWYRM_BUILD_TESTS=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+To use the Wyrm C++ library put these lines in your CMake file:
 ```txt
 find_package(wyrm-cpp REQUIRED)
 target_link_libraries(my_target PRIVATE wyrm::wyrm-cpp)
@@ -37,7 +45,7 @@ pip install wyrmpy # or uv add wyrmpy
 # Using Wyrm
 Run the wyrmd daemon:
 ```shell
-./build/wyrmd/wyrmd
+./build/wyrmd/wyrmd # -p for printing
 ```
 ## C++ Example
 ```cpp

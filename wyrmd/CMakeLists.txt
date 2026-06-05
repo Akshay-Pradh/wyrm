@@ -20,3 +20,7 @@ target_link_libraries(wyrmd
         tomlplusplus::tomlplusplus
         argparse::argparse
 )
+
+if(WYRM_BUILD_TESTS)
+    add_subdirectory(tests)
+endif()

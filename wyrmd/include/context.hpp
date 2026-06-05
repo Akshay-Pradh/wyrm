@@ -1,3 +1,13 @@
+/**
+ * Copyright [2026] [Nicholas Sutton]
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ * http://www.apache.org/licenses/LICENSE-2.0
+ */
+
 #pragma once
 
 #include "zenoh.hxx"
@@ -10,8 +20,7 @@
 #include <condition_variable>
 #include <wyrm/types.hpp> 
 
-using DescriptionTable = std::unordered_map<int32_t, WyrmDescription>;
-
+/** A Context Holds all the data that percists during the wyrm runtime */
 struct WyrmContext {
     zenoh::Session*                                             session;
     std::mutex                                                  buffer_mutex;
@@ -21,6 +30,7 @@ struct WyrmContext {
     std::queue<WyrmFrame>                                       frame_buffer;
 };
 
+/** A Config stores all the network configuration settings needed to connect to the Motive Server */
 struct WyrmConfig {
     uint16_t    server_command_port;
     uint16_t    server_data_port;
@@ -29,6 +39,7 @@ struct WyrmConfig {
     std::string multicast_address;
     ConnectionType connection_type;
 
+    /** Converts a WyrmConfig to a NatNet ConnectParams Struct */
     sNatNetClientConnectParams ToNatNet() const {
         sNatNetClientConnectParams p;
         p.serverCommandPort = server_command_port;
@@ -41,4 +52,9 @@ struct WyrmConfig {
     }
 };
 
+/**
+ * Builds the Description table that maps RigidBody Id's to their Description
+ * @param desc A collection of NatNet Descriptions
+ * @param ctx the wyrm context that stores the descriptions map
+ */
 void BuildDescriptionTable(sDataDescriptions* desc, WyrmContext& ctx);

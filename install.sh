@@ -9,7 +9,7 @@ NC='\033[0m'
 log() { echo -e "${GREEN}[wyrm-install]${NC} $1"; }
 err() { echo -e "${RED}[wyrm-install]${NC} $1"; exit 1; }
 
-# ── System Dependencies ───────────────────────────────────────────────────────
+# System Dependencies
 log "Installing system dependencies..."
 
 if [ -f /etc/debian_version ]; then
@@ -24,7 +24,7 @@ fi
 
 log "System dependencies installed."
 
-# ── Rust ───────────────────────────────────────────────
+# Rust 
 if ! command -v cargo &> /dev/null; then
     log "Installing Rust..."
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -34,7 +34,7 @@ else
     log "Rust already installed, skipping."
 fi
 
-# ── NatNet ────────────────────────────────────────────────────────────────────
+# NatNet 
 log "Installing NatNet SDK..."
 
 NATNET_ARCHIVE=$(find $HOME/Downloads -name "*.tar" | grep -i natnet | head -1)
@@ -51,7 +51,7 @@ cp /tmp/NatNetSDK/lib/libNatNet.so $HOME/.local/lib/
 rm -rf /tmp/NatNetSDK
 log "NatNet SDK installed."
 
-# ── Zenoh-C ───────────────────────────────────────────────────────────────────
+# Zenoh-C 
 log "Installing zenoh-c..."
 
 git clone https://github.com/eclipse-zenoh/zenoh-c.git /tmp/zenoh-c
@@ -62,7 +62,7 @@ cmake --install .
 cd / && rm -rf /tmp/zenoh-c
 log "zenoh-c installed."
 
-# ── Zenoh-CPP ─────────────────────────────────────────────────────────────────
+# Zenoh-CPP 
 log "Installing zenoh-cpp..."
 
 git clone https://github.com/eclipse-zenoh/zenoh-cpp.git /tmp/zenoh-cpp
@@ -73,7 +73,7 @@ cmake --install .
 cd / && rm -rf /tmp/zenoh-cpp
 log "zenoh-cpp installed."
 
-# ── Fast-CDR ─────────────────────────────────────────────────────────────────
+# Fast-CDR
 log "Installing Fast-CDR..."
 
 git clone https://github.com/eProsima/Fast-CDR.git /tmp/Fast-CDR
@@ -83,7 +83,7 @@ cmake --build . --target install
 cd / && rm -rf /tmp/Fast-CDR
 log "Fast-CDR installed."
 
-# ── Environment ───────────────────────────────────────────────────────────────
+# Environment 
 if ! grep -q "CMAKE_PREFIX_PATH" $HOME/.bashrc; then
     echo 'export CMAKE_PREFIX_PATH=$HOME/.local:$CMAKE_PREFIX_PATH' >> $HOME/.bashrc
     log "Added CMAKE_PREFIX_PATH to $HOME/.bashrc"
@@ -92,5 +92,3 @@ else
 fi
 
 log "All dependencies installed. Run 'source ~/.bashrc' to update your environment."
-
-# ── Setup System Daemon ─────────────────────────────────────────────────────────

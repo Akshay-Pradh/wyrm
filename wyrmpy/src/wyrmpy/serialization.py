@@ -1,7 +1,26 @@
+"""
+Copyright [2026] [Nicholas Sutton]
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+"""
+
 from ._crd_types import _CdrFrame, _CdrDescriptions
 from .types import WyrmRigidBody, WyrmFrame, WyrmDescription
 
 def deserialize_frame(data: bytes) -> WyrmFrame:
+    """
+    Deserializes a frame of motion capture data
+
+    Args:
+        data: The data to deserialize
+
+    Returns:
+        A WyrmFrame storing the deserialized data
+    """
     raw = _CdrFrame.deserialize(data)
     return WyrmFrame(
         frame_id           = int(raw.frame_id),
@@ -31,6 +50,15 @@ def deserialize_frame(data: bytes) -> WyrmFrame:
     )
 
 def deserialize_descriptions(data: bytes) -> dict[int, WyrmDescription]:
+    """
+    Deserializes Collection of RigidBody Descriptions
+
+    Args:
+        data: The data to deserialize
+
+    Returns:
+        A Dictionary that maps a Rigidbodies Id to its WyrmDescription
+    """
     raw = _CdrDescriptions.deserialize(data)
     return {
         int(d.id): WyrmDescription(
